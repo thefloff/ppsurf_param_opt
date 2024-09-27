@@ -14,6 +14,7 @@ class PocoCLI(CLI):
         super().add_arguments_to_parser(parser)
 
         parser.link_arguments('data.init_args.in_file', 'model.init_args.in_file')
+        parser.link_arguments('data.init_args.split', 'model.init_args.split')
         parser.link_arguments('data.init_args.padding_factor', 'model.init_args.padding_factor')
 
         # this direction because logger is not available for test/predict
@@ -23,7 +24,8 @@ class PocoCLI(CLI):
         """Replace 'rec' subcommand with predict and its default parameters.
         Download model if necessary.
         """
-        raise NotImplementedError()
+        # raise NotImplementedError()
+        return args
 
 
 def cli_main():

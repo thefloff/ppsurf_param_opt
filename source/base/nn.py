@@ -551,7 +551,7 @@ class FKAConvNetwork(pl.LightningModule):
             xout = x4
             xout = self.dropout(xout)
             xout = self.fcout(xout)
-            xout = xout.mean(dim=2)
+            xout = xout.mean(dim=2) # WEG?
         return xout
 
 

@@ -183,6 +183,8 @@ class PocoModel(pl.LightningModule):
     def predict_step(self, batch: dict, batch_idx, dataloader_idx=0):
         from source.occupancy_data_module import get_results_dir, in_file_is_dataset
 
+        print("PREDICT STEP")
+
         shape_data_poco = get_data_poco(batch_data=batch)
         prog_bar = self.get_prog_bar()
 
