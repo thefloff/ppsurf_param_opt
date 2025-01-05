@@ -80,7 +80,7 @@ def visualize(results):
         gt = result['gt']
         pred = result['pred']
         e = 0
-        for key in gt:
+        for key in ["depth", "cgDepth", "fullDepth", "iters", "pointWeight", "samplesPerNode", "scale"]:
             e += abs(gt[key] - pred[key]) * abs(gt[key] - pred[key])
         sum_e += e / 7
     sum_e /= len(results)
