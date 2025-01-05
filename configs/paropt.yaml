@@ -3,6 +3,7 @@ model:
   init_args:
     name: 'paropt'
     rec_batch_size: 5000  # half memory
+    k: 10000
     out_channels: 7
     workers: 8
 
@@ -16,3 +17,7 @@ data:
 
 trainer:
   max_epochs: 500
+  logger:
+    class_path: pytorch_lightning.loggers.TensorBoardLogger
+    init_args:
+      save_dir: './models'

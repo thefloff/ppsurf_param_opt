@@ -53,9 +53,19 @@ class ParoptModel(PocoModel):
     #         prog_bar = typing.cast(typing.Optional[TQDMProgressBar], prog_bar)
     #     return prog_bar
 
+
+            # cloud[1]["cgDepth"], 
+            # (cloud[1]["depth"] - 4) / 4,
+            # (cloud[1]["fullDepth"] - 5) / 3,
+            # (cloud[1]["iters"] - 6) / 4,
+            # (cloud[1]["pointWeight"] - 2) / 6,
+            # (cloud[1]["samplesPerNode"] - 1) / 8,
+            # (cloud[1]["scale"] - 0.9) / 0.8,
+
     def compute_loss(self, pred, batch_data):
         loss = nn.MSELoss()
         out = loss(pred[0,:,0], batch_data['gt'][0])
+        # out = abs(pred[0,:,0][6] - batch_data['gt'][0][6])
         return out
 
     # def calc_metrics(self, pred, gt_data):
@@ -82,27 +92,25 @@ class ParoptModel(PocoModel):
 
     def training_step(self, batch, batch_idx):
         # loss, loss_components_mean, loss_components, metrics_dict = self.default_step_dict(batch=batch)
-        # self.do_logging(loss, loss_components_mean, log_type='train',
-        #                 output_names=self.output_names, metrics_dict=metrics_dict, f1_in_prog_bar=False,
-        #                 keys_to_log=frozenset({'accuracy', 'precision', 'recall', 'f1_score'}))
         pred = self.network.forward(batch)
         loss = self.compute_loss(pred, batch)
+        self.do_logging(loss, [loss], log_type='train',
+                        output_names=["loss"], metrics_dict={"loss": loss.item()}, f1_in_prog_bar=False,
+                        keys_to_log=frozenset({'loss'}))
         return loss
 
     def validation_step(self, batch, batch_idx):
         # loss, loss_components_mean, loss_components, metrics_dict = self.default_step_dict(batch=batch)
-        # self.do_logging(loss, loss_components_mean, log_type='val',
-        #                 output_names=self.output_names, metrics_dict=metrics_dict, f1_in_prog_bar=True,
-        #                 keys_to_log=frozenset({'accuracy', 'precision', 'recall', 'f1_score'}))
         pred = self.network.forward(batch)
         loss = self.compute_loss(pred, batch)
+        self.do_logging(loss, [loss], log_type='val',
+                        output_names=["loss"], metrics_dict={"loss": loss.item()}, f1_in_prog_bar=False,
+                        keys_to_log=frozenset({'loss'}))
         return loss
 
     def test_step(self, batch, batch_idx):
         pred = self.network.forward(batch)
         loss = self.compute_loss(pred, batch)
-
-        print(loss)
 
         gt = batch["gt"].tolist()[0]
         gt = ParoptDataset.un_norm(gt)
@@ -268,27 +276,27 @@ class ParoptModel(PocoModel):
 
     #     print('{}: Evaluating {} finished'.format(get_now_str(), self.name))
 
-    # def do_logging(self, loss_total, loss_components, log_type: str, output_names: list, metrics_dict: dict,
-    #                keys_to_log=frozenset({'abs_dist_rms', 'accuracy', 'precision', 'recall', 'f1_score'}),
-    #                f1_in_prog_bar=True, on_step=True, on_epoch=False):
+    def do_logging(self, loss_total, loss_components, log_type: str, output_names: list, metrics_dict: dict,
+                   keys_to_log=frozenset({'abs_dist_rms', 'accuracy', 'precision', 'recall', 'f1_score'}),
+                   f1_in_prog_bar=True, on_step=True, on_epoch=False):
 
-    #     import math
-    #     import numbers
+        import math
+        import numbers
 
-    #     self.log('loss/{}/00_all'.format(log_type), loss_total, on_step=on_step, on_epoch=on_epoch)
-    #     if len(loss_components) > 1:
-    #         for li, l in enumerate(loss_components):
-    #             self.log('loss/{}/{}_{}'.format(log_type, li, output_names[li]), l, on_step=on_step, on_epoch=on_epoch)
+        self.log('loss/{}/00_all'.format(log_type), loss_total, on_step=on_step, on_epoch=on_epoch)
+        if len(loss_components) > 1:
+            for li, l in enumerate(loss_components):
+                self.log('loss/{}/{}_{}'.format(log_type, li, output_names[li]), l, on_step=on_step, on_epoch=on_epoch)
 
-    #     for key in metrics_dict.keys():
-    #         if key in keys_to_log and isinstance(metrics_dict[key], numbers.Number):
-    #             value = metrics_dict[key]
-    #             if math.isnan(value):
-    #                 value = 0.0
-    #             self.log('metrics/{}/{}'.format(log_type, key), value, on_step=on_step, on_epoch=on_epoch)
+        for key in metrics_dict.keys():
+            if key in keys_to_log and isinstance(metrics_dict[key], numbers.Number):
+                value = metrics_dict[key]
+                if math.isnan(value):
+                    value = 0.0
+                self.log('metrics/{}/{}'.format(log_type, key), value, on_step=on_step, on_epoch=on_epoch)
 
-    #     self.log('metrics/{}/{}'.format(log_type, 'F1'), metrics_dict['f1_score'],
-    #              on_step=on_step, on_epoch=on_epoch, logger=False, prog_bar=f1_in_prog_bar)
+        self.log('metrics/{}/{}'.format(log_type, 'MSE_loss'), metrics_dict['loss'],
+                 on_step=on_step, on_epoch=on_epoch, logger=False, prog_bar=f1_in_prog_bar)
 
     # def visualize_step_results(self, batch_data: dict, predictions, losses, metrics):
     #     from source.base import visualization

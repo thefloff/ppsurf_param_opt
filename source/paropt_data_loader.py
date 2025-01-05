@@ -20,7 +20,7 @@ from .poco_data_loader import get_fkaconv_ids, get_proj_ids
 
 
 
-def get_data_paropt(batch_data: dict):
+def get_data_paropt(batch_data: dict, k: int):
     import torch
 
     fkaconv_data = {
@@ -38,7 +38,7 @@ def get_data_paropt(batch_data: dict):
 
     with torch.no_grad():
         net_data = get_fkaconv_ids(fkaconv_data)
-        proj_data = get_proj_ids(fkaconv_data, k=64)  # TODO: put k in param
+        proj_data = get_proj_ids(fkaconv_data, k)  # TODO: put k in param
         net_data['proj_ids'] = proj_data['proj_ids']
 
     # need points also for poco ids
@@ -68,17 +68,18 @@ class ParoptDataModule(OccupancyDataModule):
     def make_dataset(
             self, in_file: typing.Union[str, list], reconstruction: bool, patches_per_shape: typing.Optional[int],
             do_data_augmentation: bool):
-        return ParoptDataset(split = self.split)
+        return ParoptDataset(split = self.split, k = 10000)
 
 
 class ParoptDataset(torch_data.Dataset, EnforceOverrides):
-    def __init__(self, split: str = "train"):
+    def __init__(self, split: str = "train", k: int = 64):
         root = "/media/florian/SSD/machine_learning/data"
         self.npoints = 1000
         self.root = root
         self.split = split
         self.fns = []
         self.test_every = 1 / 0.1
+        self.k = k
 
         self.gt_dir = os.path.join(root, "output", "abc")
         self.pts_dir = os.path.join(root, "abc", "04_pts")
@@ -126,7 +127,7 @@ class ParoptDataset(torch_data.Dataset, EnforceOverrides):
         gt = torch.from_numpy(np.array(gt).astype(np.float32))
         pts_query_ms = torch.from_numpy(np.array([[0, 0, 0]]).astype(np.float32))
         shape_data = {'pts': pts, 'pts_ms': pts_ms, 'pts_query_ms': pts_query_ms, 'gt': gt, 'id': cloud[0]}
-        shape_data = get_data_paropt(shape_data)
+        shape_data = get_data_paropt(shape_data, self.k)
         return shape_data
     
     # pts_ms 10000 subsample
