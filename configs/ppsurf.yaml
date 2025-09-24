@@ -1,5 +1,5 @@
 trainer:
-  default_root_dir: '/media/florian/SSD/machine_learning/ppsurf/models/ppsurf'
+  default_root_dir: 'models/ppsurf'
 
 model:
   class_path: source.ppsurf_model.PPSurfModel

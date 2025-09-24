@@ -3,7 +3,7 @@ seed_everything: 42
 
 trainer:
   max_epochs: 150
-  default_root_dir: '/media/florian/SSD/machine_learning/ppsurf/models/poco'
+  default_root_dir: 'models/poco'
   strategy: auto
   accelerator: gpu
   devices: -1
@@ -28,7 +28,7 @@ data:
   class_path: source.poco_data_loader.PocoDataModule
   init_args:
     use_ddp: False
-    in_file: /media/florian/SSD/machine_learning/ppsurf/datasets/abc_train/testset.txt
+    in_file: 'datasets/abc_train/testset.txt'
     padding_factor: 0.05
     seed: 42
     manifold_points: 10000

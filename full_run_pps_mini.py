@@ -32,8 +32,8 @@ configs = '-c configs/poco.yaml -c configs/ppsurf.yaml {server} -c configs/{name
 configs_train = configs.format(server='-c configs/device_server.yaml' if on_server else '', name=name)
 cmd_train = cmd_template.format(main_cmd=main_cmd, sub_cmd='fit',
                                 configs=configs_train, debug=debug, print_config=print_config)
-print(cmd_train)
-# os.system(cmd_train)
+# print(cmd_train)
+os.system(cmd_train)
 
 args_no_train = ('--ckpt_path models/{name}/version_{version}/checkpoints/last.ckpt '
                  '--trainer.logger False '  # comment for tensorboard profiling
@@ -45,8 +45,8 @@ cmd_template_no_train = cmd_template + ' --data.init_args.in_file {dataset}/test
 # testing
 cmd_test = cmd_template_no_train.format(main_cmd=main_cmd, sub_cmd='test', configs=configs_no_train, 
                                         dataset='datasets/abc_minimal', debug=debug, print_config=print_config)
-print(cmd_test)
-# os.system(cmd_test)
+# print(cmd_test)
+os.system(cmd_test)
 
 # prediction
 datasets = [
@@ -65,5 +65,5 @@ for ds in datasets:
                                             dataset='datasets/' + ds, debug=debug, print_config=print_config)
     # cmd_pred += ' -c configs/profiler.yaml'
     cmd_pred += ' --model.init_args.gen_resolution_global 129'
-    print(cmd_pred)
-    # os.system(cmd_pred)
+    # print(cmd_pred)
+    os.system(cmd_pred)

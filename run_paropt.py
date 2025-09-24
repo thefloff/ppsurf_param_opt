@@ -10,7 +10,7 @@ import os
 
 python_call = 'python'
 main_cmd = 'pps.py'
-name = 'ppsurf_mini'
+name = 'paropt'
 version = '0'
 on_server = False
 
@@ -47,7 +47,7 @@ cmd_template_no_train = cmd_template + ' --data.init_args.in_file {dataset}/test
 cmd_test = cmd_template_no_train.format(main_cmd=main_cmd, sub_cmd='test', configs=configs_no_train, 
                                         dataset='datasets/abc_minimal', debug=debug, print_config=print_config)
 print(cmd_test + "\n")
-# os.system(cmd_test)
+os.system(cmd_test)
 
 # prediction
 datasets = [

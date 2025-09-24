@@ -15,6 +15,7 @@ dependencies:
   - pytorch-cluster>=1.6.0  # no newer version, requires pytorch 1 and cuda 11
   - scikit-learn-intelex
   - numpy>=1.23.5
+  - matplotlib=3
   - scikit-image>=0.19.3
   - scipy>=1.10.0
   - pandas>=1.5.2

@@ -1,5 +1,5 @@
 trainer:
-  default_root_dir: '/media/florian/SSD/machine_learning/ppsurf/models/ppsurf_mini'
+  default_root_dir: 'models/ppsurf_mini'
 
 model:
   init_args:
@@ -9,5 +9,5 @@ model:
 
 data:
   init_args:
-    in_file: /media/florian/SSD/machine_learning/ppsurf/datasets/abc_minimal/testset.txt  # small dataset
+    in_file: 'datasets/abc_minimal/testset.txt'  # small dataset
     batch_size: 4  # 16 GB GPU memory

@@ -73,7 +73,7 @@ class ParoptDataModule(OccupancyDataModule):
 
 class ParoptDataset(torch_data.Dataset, EnforceOverrides):
     def __init__(self, split: str = "train", k: int = 64):
-        root = "/media/florian/SSD/machine_learning/data"
+        root = "datasets/abc_normals"
         self.npoints = 1000
         self.root = root
         self.split = split
@@ -81,8 +81,8 @@ class ParoptDataset(torch_data.Dataset, EnforceOverrides):
         self.test_every = 1 / 0.1
         self.k = k
 
-        self.gt_dir = os.path.join(root, "output", "abc")
-        self.pts_dir = os.path.join(root, "abc", "04_pts")
+        self.gt_dir = os.path.join(root, "06_opt_params")
+        self.pts_dir = os.path.join(root, "04_pts_vis")
 
         self.cloud_data = []
 
@@ -99,14 +99,15 @@ class ParoptDataset(torch_data.Dataset, EnforceOverrides):
                             gt_data[ls[0]] = True
                         else:
                             gt_data[ls[0]] = float(ls[1])
-                pts_path = os.path.join(self.pts_dir, os.path.splitext(gt)[0] + ".xyz.npy")
+                pts_path = os.path.join(self.pts_dir, os.path.splitext(gt)[0] + ".ply")
                 self.cloud_data.append([pts_path, gt_data, os.path.splitext(gt)[0]])
             count += 1
 
     def __getitem__(self, index):
         # index = 0
         cloud = self.cloud_data[index]
-        pts = np.load(cloud[0]).astype(np.float32)
+        # pts = np.load(cloud[0]).astype(np.float32)
+        pts = trimesh.load(cloud[0]).vertices.astype(np.float32)
 
         #resample
         choice = np.random.choice(len(pts), self.npoints, replace=True)
