@@ -2,18 +2,17 @@ model:
   class_path: source.paropt_model.ParoptModel
   init_args:
     name: 'paropt'
+    in_channels: 6  # 3 for positions + 3 for normals
     rec_batch_size: 5000  # half memory
     k: 10000
     out_channels: 7
     workers: 8
 
 data:
+  class_path: source.paropt_data_loader.ParoptDataModule
   init_args:
     batch_size: 8  # 16 GB GPU memory
     workers: 8
-
-data:
-  class_path: source.paropt_data_loader.ParoptDataModule
 
 trainer:
   max_epochs: 500

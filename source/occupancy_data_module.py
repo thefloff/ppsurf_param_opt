@@ -197,22 +197,43 @@ class OccupancyDataModule(LightningDataModule, ABC):
             pts = load_xyz(pts_file)
         elif file_ext in ['.stl', '.ply', '.obj', 'gltf', '.glb', '.dae', '.off', '.ctm', '.3dxml']:
             import trimesh
-            trimesh_obj: typing.Union[trimesh.Scene, trimesh.Trimesh] = trimesh.load_mesh(file_obj=pts_file)
-            if isinstance(trimesh_obj, trimesh.Scene):
-                mesh: trimesh.Trimesh = trimesh_obj.geometry.items()[0]
-            elif isinstance(trimesh_obj, trimesh.Trimesh):
-                mesh: trimesh.Trimesh = trimesh_obj
-            elif isinstance(trimesh_obj, trimesh.PointCloud):
-                mesh: trimesh.Trimesh = trimesh_obj
+            # get points and normals, special case see https://github.com/mikedh/trimesh/issues/1192
+            pointcloud = trimesh.load_mesh(pts_file)
+            
+            # Handle different ways trimesh can load PLY files
+            if hasattr(pointcloud, 'vertices') and pointcloud.vertices is not None:
+                # Standard mesh with vertices
+                pts = pointcloud.vertices
+                # Try to get normals if available
+                if hasattr(pointcloud, 'vertex_normals') and pointcloud.vertex_normals is not None:
+                    normals = pointcloud.vertex_normals
+                    pts = np.concatenate([pts, normals], axis=-1)
+                else:
+                    # Add zero normals if none available
+                    normals = np.zeros_like(pts)
+                    pts = np.concatenate([pts, normals], axis=-1)
+            elif '_ply_raw' in pointcloud.metadata:
+                # Original approach for specific PLY format
+                pointcloud_data = pointcloud.metadata['_ply_raw']['vertex']['data']
+                pts = np.stack((pointcloud_data['x'], pointcloud_data['y'], pointcloud_data['z']), axis=-1)
+                if 'nx' in pointcloud_data and 'ny' in pointcloud_data and 'nz' in pointcloud_data:
+                    normals = np.stack((pointcloud_data['nx'], pointcloud_data['ny'], pointcloud_data['nz']), axis=-1)
+                    pts = np.concatenate([pts, normals], axis=-1)
+                else:
+                    normals = np.zeros_like(pts)
+                    pts = np.concatenate([pts, normals], axis=-1)
             else:
-                raise ValueError('Unknown trimesh object type: {}'.format(type(trimesh_obj)))
-            pts = np.array(mesh.vertices)
+                raise ValueError(f'Could not extract point data from {pts_file}')
         elif file_ext in ['.las', '.laz', '.copc', '.crs']:
             import laspy
             las = laspy.read(pts_file)
             pts = las.xyz
         else:
             raise ValueError('Unknown point cloud type: {}'.format(pts_file))
+        
+        if pts.shape[0] == 0:
+            raise ValueError(f"Empty point cloud loaded from {pts_file}. The file contains no valid points.")
+        
         return pts
     
     @staticmethod

@@ -2,6 +2,7 @@ import typing
 
 import numpy as np
 import trimesh.transformations as trafo
+from overrides import overrides
 
 from source.poco_data_loader import PocoDataModule, PocoDataset, PocoReconstructionDataset, get_data_poco
 from source.base.container import dict_np_to_torch
@@ -39,6 +40,7 @@ class PocoNormalsDataModule(PocoDataModule):
 class PocoNormalsDataset(PocoDataset):
     """Poco dataset with normals support (6-channel input)"""
     
+    @overrides
     def augment_shape(self, shape_data: dict, rand_rot: np.ndarray) -> dict:
         """Augment shape data including both positions and normals"""
         def rot_arr(arr, rot):
@@ -53,6 +55,7 @@ class PocoNormalsDataset(PocoDataset):
         
         return shape_data
     
+    @overrides
     def load_shape_by_index(self, shape_ind, return_kdtree=True):
         """Override to handle normals during subsampling"""
         # Call parent to get basic shape loading
@@ -78,6 +81,7 @@ class PocoNormalsDataset(PocoDataset):
         
         return shape_data, pts_ms_raw
     
+    @overrides
     def __getitem__(self, shape_id):
         shape_data, pts_ms_raw = self.load_shape_by_index(shape_id, return_kdtree=False)
 
@@ -98,6 +102,7 @@ class PocoNormalsDataset(PocoDataset):
 class PocoNormalsReconstructionDataset(PocoReconstructionDataset):
     """Poco reconstruction dataset with normals support"""
     
+    @overrides
     def load_shape_by_index(self, shape_ind, return_kdtree=True):
         """Override to handle normals during subsampling"""
         # Call parent to get basic shape loading
@@ -123,6 +128,7 @@ class PocoNormalsReconstructionDataset(PocoReconstructionDataset):
         
         return shape_data, pts_ms_raw
     
+    @overrides
     def __getitem__(self, shape_id):
         shape_data, pts_ms_raw = self.load_shape_by_index(shape_id, return_kdtree=False)
         
