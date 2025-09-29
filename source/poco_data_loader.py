@@ -318,7 +318,6 @@ class PocoDataset(torch_data.Dataset, EnforceOverrides):
             return trafo.transform_points(arr, rot).astype(np.float32)
 
         shape_data['pts_ms'] = rot_arr(shape_data['pts_ms'], rand_rot)
-        shape_data['normals_ms'] = rot_arr(shape_data['normals_ms'], rand_rot)
         shape_data['pts_query_ms'] = rot_arr(shape_data['pts_query_ms'], rand_rot)
         return shape_data
 
@@ -347,17 +346,16 @@ class PocoDataset(torch_data.Dataset, EnforceOverrides):
             shape_name=self.shape_names[shape_ind], normalize=normalize, return_kdtree=return_kdtree)
         pts_ms_raw = shape_data['pts_ms']
 
-        def sub_sample_point_cloud(pts: np.ndarray, normals: np.ndarray, num_target_pts: int):
+        def sub_sample_point_cloud(pts: np.ndarray, num_target_pts: typing.Optional[int]):
             if num_target_pts is None:
-                return pts, normals
+                return pts
             replace = True if pts.shape[0] < num_target_pts else False
             choice_ids = self.rng.choice(np.arange(pts.shape[0]), size=num_target_pts, replace=replace)
-            return pts[choice_ids], normals[choice_ids]
+            return pts[choice_ids]
 
-        pts_sub_sample, normals_sub_sample = sub_sample_point_cloud(
-            pts=shape_data['pts_ms'], normals=shape_data['normals_ms'], num_target_pts=self.manifold_points)
+        pts_sub_sample = sub_sample_point_cloud(
+            pts=shape_data['pts_ms'], num_target_pts=self.manifold_points)
         shape_data['pts_ms'] = pts_sub_sample
-        shape_data['normals_ms'] = normals_sub_sample
 
         query_pts_dir, query_dist_dir = get_training_data_dir(self.in_file)
         imp_surf_query_filename = os.path.join(query_pts_dir, self.shape_names[shape_ind] + '.ply.npy')

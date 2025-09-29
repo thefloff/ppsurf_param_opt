@@ -67,7 +67,18 @@ def export_mesh_and_refine_vertices_region_growing_v3(
     def _get_pts_local_ps(pts_query: np.ndarray):
         _, patch_pts_ids = query_kdtree(kdtree=kdtree, pts_query=pts_query, k=num_pts_local, sqr_dists=True)
         pts_local_ms = pts_raw_ms[patch_pts_ids.astype(np.int64)]
-        pts_local_ps_np = PPSurfDataset.normalize_patches(pts_local_ms=pts_local_ms, pts_query_ms=pts_query)
+        
+        # Check if we have normals data available
+        if 'normals_ms' in latent:
+            # For normals data, use normals-aware normalization
+            normals_local_ms = latent['normals_ms'][0].detach().cpu().numpy()[patch_pts_ids.astype(np.int64)]
+            from source.ppsurf_normals_data_loader import PPSurfNormalsDataset
+            pts_local_ps_np = PPSurfNormalsDataset.normalize_patches_with_normals(
+                pts_local_ms=pts_local_ms, pts_query_ms=pts_query, normals_local_ms=normals_local_ms)
+        else:
+            # Regular PPSurf without normals
+            pts_local_ps_np = PPSurfDataset.normalize_patches(pts_local_ms=pts_local_ms, pts_query_ms=pts_query)
+        
         pts_local_ps = torch.from_numpy(pts_local_ps_np).to(latent['pts_ms'].device).unsqueeze(0)
         return pts_local_ps
 

@@ -1,0 +1,8 @@
+trainer:
+  default_root_dir: 'models/ppsurf_normals'
+
+model:
+  class_path: source.ppsurf_normals_model.PPSurfNormalsModel
+    
+data:
+  class_path: source.ppsurf_normals_data_loader.PPSurfNormalsDataModule

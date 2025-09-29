@@ -700,3 +700,100 @@ def interpolate(x, neighbors_indices, method='mean'):
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+class PointNetfeatNormals(PointNetfeat):
+    """PointNet with proper normals support (6-channel input: positions + normals)"""
+    
+    def __init__(self, net_size_max=1024, num_scales=1, num_points=500,
+                 polar=False, use_point_stn=True, use_feat_stn=True,
+                 output_size=100, sym_op='max', dim=6):
+        # Call parent with dim=6 to handle 6-channel input
+        super(PointNetfeatNormals, self).__init__(
+            net_size_max=net_size_max, num_scales=num_scales, num_points=num_points,
+            polar=polar, use_point_stn=use_point_stn, use_feat_stn=use_feat_stn,
+            output_size=output_size, sym_op=sym_op, dim=6)
+
+    def forward(self, x, pts_weights):
+        # input transform
+        if self.use_point_stn:
+            trans, trans_quat = self.stn1(x[:, :3, :])  # transform only position data (first 3 channels)
+            # Transform positions
+            x_pos_transformed = torch.bmm(trans, x[:, :3, :])
+            # Transform normals with the same rotation (normals should rotate with positions)
+            if x.shape[1] >= 6:  # if we have normals (channels 3-5)
+                x_normals_transformed = torch.bmm(trans, x[:, 3:6, :])
+                if x.shape[1] > 6:  # if there are additional channels beyond position and normals
+                    x = torch.cat((x_pos_transformed, x_normals_transformed, x[:, 6:, :]), dim=1)
+                else:
+                    x = torch.cat((x_pos_transformed, x_normals_transformed), dim=1)
+            else:
+                x = x_pos_transformed
+        else:
+            trans = None
+            trans_quat = None
+
+        if bool(self.polar):
+            # Only apply polar transformation to position part (first 3 channels)
+            x_pos = x[:, :3, :]
+            x_pos = torch.permute(x_pos, (0, 2, 1))
+            x_pos = cartesian_to_polar(pts_cart=x_pos)
+            x_pos = torch.permute(x_pos, (0, 2, 1))
+            # Concatenate back with normals and other features
+            if x.shape[1] > 3:
+                x = torch.cat((x_pos, x[:, 3:, :]), dim=1)
+            else:
+                x = x_pos
+
+        # mlp (64,64)
+        x = f.relu(self.bn0a(self.conv0a(x)))
+        x = f.relu(self.bn0b(self.conv0b(x)))
+
+        # feature transform
+        if self.use_feat_stn:
+            trans2 = self.stn2(x)
+            x = torch.bmm(trans2, x)
+        else:
+            trans2 = None
+
+        # mlp (64,128,output_size)
+        x = f.relu(self.bn1(self.conv1(x)))
+        x = f.relu(self.bn2(self.conv2(x)))
+        x = self.bn3(self.conv3(x))
+
+        # mlp (output_size,output_size*num_scales)
+        if self.num_scales > 1:
+            x = self.bn4(self.conv4(f.relu(x)))
+
+        # symmetric max operation over all points
+        if self.num_scales == 1:
+            if self.sym_op == 'max':
+                x = self.mp1(x)
+            elif self.sym_op == 'sum':
+                x = torch.sum(x, 2, keepdim=True)
+            elif self.sym_op == 'wsum':
+                pts_weights_bc = torch.broadcast_to(torch.unsqueeze(pts_weights, 1), size=x.shape)
+                x = x * pts_weights_bc
+                x = torch.sum(x, 2, keepdim=True)
+            elif self.sym_op == 'att':
+                x = self.att(x)
+            else:
+                raise ValueError('Unsupported symmetric operation: {}'.format(self.sym_op))
+
+        else:
+            x_scales = x.new_empty(x.size(0), self.output_size*self.num_scales**2, 1)
+            if self.sym_op == 'max':
+                for s in range(self.num_scales):
+                    x_scales[:, s*self.num_scales*self.output_size:(s+1)*self.num_scales*self.output_size, :] = \
+                        self.mp1(x[:, :, s*self.num_points:(s+1)*self.num_points])
+            elif self.sym_op == 'sum':
+                for s in range(self.num_scales):
+                    x_scales[:, s*self.num_scales*self.output_size:(s+1)*self.num_scales*self.output_size, :] = \
+                        torch.sum(x[:, :, s*self.num_points:(s+1)*self.num_points], 2, keepdim=True)
+            else:
+                raise ValueError('Unsupported symmetric operation: %s' % self.sym_op)
+            x = x_scales
+
+        x = x.view(-1, self.output_size * self.num_scales ** 2)
+
+        return x, trans, trans_quat, trans2

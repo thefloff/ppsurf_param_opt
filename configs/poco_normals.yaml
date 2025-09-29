@@ -1,0 +1,11 @@
+trainer:
+  default_root_dir: 'models/poco_normals'
+
+model:
+  class_path: source.poco_normals_model.PocoNormalsModel
+  init_args:
+    in_channels: 6
+    name: 'poco_normals'
+
+data:
+  class_path: source.poco_normals_data_loader.PocoNormalsDataModule
