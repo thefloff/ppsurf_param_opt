@@ -400,9 +400,44 @@ class InterpAttentionKHeadsNet(torch.nn.Module):
             pts_query = pts_query.transpose(1, 2)
 
         x = batch_gather(x, 2, indices)
-        pts = batch_gather(pts, 2, indices)
-        pts = pts_query.unsqueeze(3) - pts
+        pts = batch_gather(pts, 1, indices)
+        
+        # Handle 6D input (positions + normals) by extracting only positions AFTER gathering
+        if len(pts.shape) == 4 and pts.shape[3] == 6:
+            pts = pts[:, :, :, :3]
+        elif len(pts.shape) == 4 and pts.shape[2] == 6:
+            pts = pts[:, :, :3, :]
+        elif pts.shape[1] == 6:
+            pts = pts[:, :3, :]
+            
+        if len(pts_query.shape) == 4 and pts_query.shape[3] == 6:
+            pts_query = pts_query[:, :, :, :3]
+        elif len(pts_query.shape) == 4 and pts_query.shape[2] == 6:
+            pts_query = pts_query[:, :, :3, :]
+        elif len(pts_query.shape) == 3 and pts_query.shape[2] == 6:
+            pts_query = pts_query[:, :, :3]
+        elif pts_query.shape[1] == 6:
+            pts_query = pts_query[:, :3, :]
 
+        # We need to make sure both tensors have compatible shapes for broadcasting
+        if len(pts_query.shape) == 3:
+            pts_query = pts_query.unsqueeze(2)  # Add dimension for broadcasting
+        else:
+            pts_query = pts_query.unsqueeze(3)  # Add last dimension
+        
+        pts = pts_query - pts
+
+        # Handle 6D case: extract only position differences (first 3 channels)
+        if pts.shape[3] == 6:
+            pts = pts[:, :, :, :3]
+
+        # Transpose pts to match x's format: [batch, channels, subsample_size, query_points]
+        pts = pts.permute(0, 3, 1, 2)  # Reorder dimensions
+        
+        # Make sure pts has same subsample dimension as x
+        if pts.shape[2] != x.shape[2]:
+            pts = pts.mean(dim=2, keepdim=True)  # Average across subsample dimension to match x
+        
         x = torch.cat([x, pts], dim=1)
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))

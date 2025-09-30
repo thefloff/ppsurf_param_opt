@@ -4,7 +4,7 @@ model:
     name: 'paropt'
     in_channels: 6  # 3 for positions + 3 for normals
     rec_batch_size: 5000  # half memory
-    k: 10000
+    k: 64  # KNN neighbors, not point count
     out_channels: 7
     workers: 8
 
@@ -15,7 +15,7 @@ data:
     workers: 8
 
 trainer:
-  max_epochs: 500
+  max_epochs: 200
   logger:
     class_path: pytorch_lightning.loggers.TensorBoardLogger
     init_args:

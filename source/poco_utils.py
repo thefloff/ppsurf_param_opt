@@ -270,14 +270,20 @@ def knn(points: torch.Tensor, support_points: torch.Tensor, k: int, workers: int
         k = points.shape[2]
     pts = points.cpu().detach().transpose(1, 2).numpy().copy()
     s_pts = support_points.cpu().detach().transpose(1, 2).numpy().copy()
+    
+    # Handle 6D data (positions + normals) by extracting only positions for KDTree operations
+    if pts.shape[-1] == 6:
+        pts = pts[..., :3]  # Extract only positions (first 3 dimensions)
+    if s_pts.shape[-1] == 6:
+        s_pts = s_pts[..., :3]  # Extract only positions (first 3 dimensions)
 
     from source.base.proximity import kdtree_query_oneshot
 
-    indices: list = []
+    indices_list = []
     for i in range(pts.shape[0]):
         _, ids = kdtree_query_oneshot(pts=pts[i], pts_query=s_pts[i], k=k, workers=workers)
-        indices.append(torch.from_numpy(ids.astype(np.int64)))
-    indices: torch.Tensor = torch.stack(indices, dim=0)
+        indices_list.append(torch.from_numpy(ids.astype(np.int64)))
+    indices = torch.stack(indices_list, dim=0)
     if k == 1:
         indices = indices.unsqueeze(2)
     return indices.to(points.device)

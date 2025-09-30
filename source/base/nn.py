@@ -421,13 +421,13 @@ class MLP(pl.LightningModule):
 
 class ResidualBlock(pl.LightningModule):
 
-    def __init__(self, in_channels, out_channels, kernel_size, activation=torch.nn.ReLU()):
+    def __init__(self, in_channels, out_channels, kernel_size, point_dim=3, activation=torch.nn.ReLU()):
         super().__init__()
         bn = nn.BatchNorm1d
 
         self.cv0 = nn.Conv1d(in_channels, in_channels // 2, 1)
         self.bn0 = bn(in_channels // 2)
-        self.cv1 = FKAConvLayer(in_channels // 2, in_channels // 2, kernel_size, activation=activation)
+        self.cv1 = FKAConvLayer(in_channels // 2, in_channels // 2, kernel_size, dim=point_dim, activation=activation)
         self.bn1 = bn(in_channels // 2)
         self.cv2 = nn.Conv1d(in_channels // 2, out_channels, 1)
         self.bn2 = bn(out_channels)
@@ -465,14 +465,19 @@ class FKAConvNetwork(pl.LightningModule):
         self.fix_support_point_number = fix_support_number
         self.kernel_size = 16
 
-        self.cv0 = FKAConvLayer(in_channels, hidden, 16, activation=activation)
+        # Determine point dimensionality based on input channels
+        # For ParOpt: in_channels=6 means 6D points (3D positions + 3D normals)
+        # For regular POCO: in_channels=3 means 3D points (positions only)
+        point_dim = 6 if in_channels == 6 else 3
+
+        self.cv0 = FKAConvLayer(in_channels, hidden, 16, dim=point_dim, activation=activation)
 
         bn = nn.BatchNorm1d
         self.bn0 = bn(hidden)
 
         def _make_resnet_block(in_channels_resnetb, out_channels_resnetb):
             return ResidualBlock(in_channels=in_channels_resnetb, out_channels=out_channels_resnetb,
-                                 kernel_size=self.kernel_size, activation=activation)
+                                 kernel_size=self.kernel_size, point_dim=point_dim, activation=activation)
 
         self.resnetb01 = _make_resnet_block(hidden, hidden)
         self.resnetb10 = _make_resnet_block(hidden, 2 * hidden)

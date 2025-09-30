@@ -67,7 +67,7 @@ class ParoptDataModule(PocoNormalsDataModule):
             self, in_file: typing.Union[str, list], reconstruction: bool, patches_per_shape: typing.Optional[int],
             do_data_augmentation: bool):
         # Return our custom paropt dataset instead of the normals dataset
-        return ParoptDataset(split=self.split, k=10000)
+        return ParoptDataset(split=self.split, k=64)  # k should be KNN neighbors, not point count
 
 
 class ParoptDataset(PocoNormalsDataset):
@@ -80,14 +80,14 @@ class ParoptDataset(PocoNormalsDataset):
             padding_factor=1.0,
             seed=42,
             use_ddp=False,
-            manifold_points=1000,
+            manifold_points=10000,
             patches_per_shape=None,
             do_data_augmentation=False
         )
         
         # Override parent attributes with our custom setup
         root = "datasets/abc_normals"
-        self.npoints = 1000
+        self.npoints = 10000
         self.root = root
         self.split = split
         self.fns = []
@@ -178,7 +178,8 @@ class ParoptDataset(PocoNormalsDataset):
         pts_full = torch.from_numpy(pts_with_normals)
         pts_ms = torch.from_numpy(pts_ms_final)
         gt = torch.from_numpy(np.array(gt).astype(np.float32))
-        pts_query_ms = torch.from_numpy(np.array([[0, 0, 0]]).astype(np.float32))
+        # Create 6D query point (3D position + 3D normal, all zeros for center)
+        pts_query_ms = torch.from_numpy(np.array([[0, 0, 0, 0, 0, 0]]).astype(np.float32))
         
         shape_data = {'pts': pts_full, 'pts_ms': pts_ms, 'pts_query_ms': pts_query_ms, 'gt': gt, 'id': cloud[0]}
         shape_data = get_data_paropt(shape_data, self.k)

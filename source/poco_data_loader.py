@@ -95,9 +95,21 @@ def sampling_quantized(pts_batch, ratio=None, n_support=None, support_points=Non
             sampled = []
             vox = vox_size[i]
             while True:
-                #data = Data(pos=pts)
-                # TODO: optimize to one call to linear transformation
-                pts_rot = rot_z(rot_y(rot_x(Data(pos=pts)))).pos.to(pts.dtype)
+                # Check if data contains both positions and normals (6D) or just positions (3D)
+                if pts.shape[1] == 6:
+                    # Split positions and normals
+                    pos_data = pts[:, :3]  # First 3 columns are positions
+                    normal_data = pts[:, 3:]  # Last 3 columns are normals
+                    
+                    # Apply rotations only to positions
+                    pos_rot = rot_z(rot_y(rot_x(Data(pos=pos_data)))).pos.to(pos_data.dtype)
+                    # For simplicity, we only use positions for voxel grid sampling
+                    pts_rot = pos_rot
+                elif pts.shape[1] == 3:
+                    # Only positions, apply rotations normally
+                    pts_rot = rot_z(rot_y(rot_x(Data(pos=pts)))).pos.to(pts.dtype)
+                else:
+                    raise ValueError(f"Expected 3D positions or 6D positions+normals, got {pts.shape[1]}D data")
 
                 c = voxel_grid(pts_rot, batch=torch.zeros(pts_rot.shape[0], device=pts.device, dtype=pts.dtype), size=vox)
                 _, perm = consecutive_cluster(c)
@@ -221,10 +233,17 @@ def get_proj_ids(data: typing.Dict[str, torch.Tensor], k: int) -> typing.Dict[st
         pts_query = pts_query.unsqueeze(0)
         add_batch_dimension_non_manifold = True
 
-    if pts.shape[1] != 3:
+    # Handle the case where data contains both positions and normals (6D)
+    if pts.shape[1] == 6:
+        # Extract only positions (first 3 dimensions) for KDTree operations
+        pts = pts[:, :3, :]
+    elif pts.shape[1] != 3:
         pts = pts.transpose(1, 2)
 
-    if pts_query.shape[1] != 3:
+    if pts_query.shape[1] == 6:
+        # Extract only positions (first 3 dimensions) for KDTree operations
+        pts_query = pts_query[:, :3, :]
+    elif pts_query.shape[1] != 3:
         pts_query = pts_query.transpose(1, 2)
 
     indices = knn(pts, pts_query, k, -1)

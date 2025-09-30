@@ -197,33 +197,40 @@ class OccupancyDataModule(LightningDataModule, ABC):
             pts = load_xyz(pts_file)
         elif file_ext in ['.stl', '.ply', '.obj', 'gltf', '.glb', '.dae', '.off', '.ctm', '.3dxml']:
             import trimesh
-            # get points and normals, special case see https://github.com/mikedh/trimesh/issues/1192
-            pointcloud = trimesh.load_mesh(pts_file)
+            # Use trimesh.load instead of load_mesh to handle both meshes and point clouds
+            # See https://github.com/mikedh/trimesh/issues/1192
+            pointcloud = trimesh.load(pts_file)
             
-            # Handle different ways trimesh can load PLY files
-            if hasattr(pointcloud, 'vertices') and pointcloud.vertices is not None:
-                # Standard mesh with vertices
+            # Handle different types of loaded objects
+            if hasattr(pointcloud, 'vertices') and pointcloud.vertices is not None and pointcloud.vertices.shape[0] > 0:
+                # Get coordinates
                 pts = pointcloud.vertices
-                # Try to get normals if available
+                
+                # Try to get normals from different sources
+                normals = None
+                
+                # First try: vertex_normals attribute (common for meshes)
                 if hasattr(pointcloud, 'vertex_normals') and pointcloud.vertex_normals is not None:
                     normals = pointcloud.vertex_normals
-                    pts = np.concatenate([pts, normals], axis=-1)
-                else:
-                    # Add zero normals if none available
+                
+                # Second try: extract from raw PLY data (common for point clouds)
+                elif hasattr(pointcloud, 'metadata') and '_ply_raw' in pointcloud.metadata:
+                    ply_raw = pointcloud.metadata['_ply_raw']
+                    if 'vertex' in ply_raw and 'data' in ply_raw['vertex']:
+                        vertex_data = ply_raw['vertex']['data']
+                        # Check if normals are available in the raw data
+                        if (hasattr(vertex_data, 'dtype') and vertex_data.dtype.names and 
+                            all(field in vertex_data.dtype.names for field in ['nx', 'ny', 'nz'])):
+                            normals = np.column_stack([vertex_data['nx'], vertex_data['ny'], vertex_data['nz']])
+                
+                # If no normals found, create zero normals
+                if normals is None:
                     normals = np.zeros_like(pts)
-                    pts = np.concatenate([pts, normals], axis=-1)
-            elif '_ply_raw' in pointcloud.metadata:
-                # Original approach for specific PLY format
-                pointcloud_data = pointcloud.metadata['_ply_raw']['vertex']['data']
-                pts = np.stack((pointcloud_data['x'], pointcloud_data['y'], pointcloud_data['z']), axis=-1)
-                if 'nx' in pointcloud_data and 'ny' in pointcloud_data and 'nz' in pointcloud_data:
-                    normals = np.stack((pointcloud_data['nx'], pointcloud_data['ny'], pointcloud_data['nz']), axis=-1)
-                    pts = np.concatenate([pts, normals], axis=-1)
-                else:
-                    normals = np.zeros_like(pts)
-                    pts = np.concatenate([pts, normals], axis=-1)
+                
+                # Combine coordinates and normals
+                pts = np.concatenate([pts, normals], axis=-1)
             else:
-                raise ValueError(f'Could not extract point data from {pts_file}')
+                raise ValueError(f'Could not extract point data from {pts_file}. File may be empty or unsupported format.')
         elif file_ext in ['.las', '.laz', '.copc', '.crs']:
             import laspy
             las = laspy.read(pts_file)
